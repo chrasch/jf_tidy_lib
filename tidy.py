@@ -2,28 +2,53 @@ import os
 import sys
 import re
 import shutil
+import argparse
+from pathlib import Path
+from datetime import datetime
 
 
 prompt_header = (
-  "Please clean up the following list of films and/or series and return the english names if possible."
-  "The output pattern must be <name> <(year)>."
-  "The output must be in the same order as the input."
-  "Remove all extra dots, tags, release info or alternate names."
-  "Preserve following file extentions: .mp4, .mkv, .divx, .avi, .flv, .vob."
-  "Use the most widely accepted English release titles if possible, if not, preserve the old name."
-  "Provide the output in plain text to copy to the clipboard."
+  "Please clean up the following list of films and/or series and return the english names if possible. "
+  "Use the most widely accepted English release titles if possible, if not, preserve the old name. "
+  "The output pattern must be <name> <(year)>. "
+  "The output must be in the same order as the input. "
+  "Remove all extra dots, tags, release info or alternate names. "
+  "Preserve following file extentions: .mp4, .mkv, .divx, .avi, .flv, .vob. "
+  "Provide the output in a code box as plain text to copy to the clipboard."
 )
+
+
+prompt_header_anime = (
+  "Please parse and/or clean up the following list of films and/or series and return the romanized titles if possible. "
+  "Use the most widely accepted japanese release titles if possible, if not, preserve the old name. "
+  "The output pattern must be <name> <(year)>. "
+  "The output must be in the same order as the input. "
+  "Remove all extra dots, tags, release info or alternate names. "
+  "Preserve following file extentions: .mp4, .mkv, .divx, .avi, .flv, .vob. "
+  "If possible, use the following sources: anisearch.de, myanimelist.net, anidb.net in this order. Do NOT translate yourself. "
+  "Do NOT enumerate. Do NOT provide sources. Provide the output in a code box as plain text to copy to the clipboard."
+)
+
 
 def print_menu():
   print("\n----- Tidy Script -----")
-  print("1) Generate output for LLM regex pattern generation")
-  print("2) Read in the LLM output (create an output.txt file and paste LLM output in). Create a dry-run.txt for checking.")
-  print("3) Rename and/or create the folders in the specified directory.")
-  print("4) Abort")
+  print("1) Generate prompt for LLM.")
+  print("2) Paste LLM output in output.txt. Read in the LLM output. Create a dry-run.txt for checking.")
+  print("3) Rename and/or create the folders in the specified directory. Files will be moved to the new directories.")
+  print("4) Exit")
 
 
 def clear():
   os.system("cls" if os.name == "nt" else "clear")
+
+
+def cleanup():
+  working_files = ("./prompt.txt", "./output.txt", "./dry-run.txt")
+  for file in working_files:
+    if os.path.exists(file):
+      os.remove(file)
+    else:
+      print(f"File '{file}' does not exist.")
 
 
 def sanitize_names(name):
@@ -45,7 +70,7 @@ def read_folder(path, content_type):
         folder_content = os.listdir(path)
         for file in folder_content:
           full_path = os.path.join(path, file)
-          if os.path.isfile(full_path) and file.endswith(video_format):
+          if os.path.isfile(full_path) and file.lower().endswith(video_format):
             collected_files.append(file)
         return collected_files
       case "folder":
@@ -99,44 +124,24 @@ def read_file(path, ignore_header, sanitize):
     print(f"Error: {e}")
 
 
-def streamline_names(collected_files):
-  suggested_names = []
-  junk_pattern = [
-    r"\b\.(dvdrip|xvid|x264|x265|av1|dts|ac3|german|english|hq|dvd|rip|by.+|@\w+)\b",
-    r"\b(1080p|720p|bluray|brrip|webrip)\b",
-    r"\b(extended|messias)\b",
-    r"(\(\))",
-    r"(\[.*?\])"
-  ]
-
+def write_to_file(output, f_type, flag = False):
   try:
-    if collected_files:
-      for f in collected_files:
-        tmp = os.path.splitext(f)
-        tmp2 = tmp[0]
-        for j in junk_pattern:
-          tmp2 = re.sub(j, "", tmp2, flags=re.IGNORECASE)
-        tmp2 = re.sub(r"[._]", " ", tmp2)
-        tmp2 = re.sub(r"\s+", " ", tmp2).strip()
-        tmp2 = re.sub(r"((?<=\s)-(?!\s).+)", "", tmp2).strip()
-        tmp2 = re.sub(r"-$", "", tmp2).strip()
-        suggested_names.append(f + ' --> ' + tmp2 + tmp[1])
-      print(suggested_names)
-      return suggested_names
-    else:
-      print("Files not collected")
-  except Exception as e:
-    print(f"Error: {e}")
-
-
-def write_to_file(output, f_type):
-  try:
-    if f_type == "prompt":
+    if f_type == "prompt" and flag:
       with open('prompt.txt', 'w') as file:
-        file.write(prompt_header + '\n')
+        file.write(prompt_header_anime + '\n')
         for f in output:
           file.write(f + '\n')
-      print("prompt.txt written...")
+      print("prompt.txt for anime written...")
+    elif f_type == "prompt":
+      with open('prompt.txt', 'w') as file:
+        file.write(prompt_header + '\n')
+        print(flag)
+        for f in output:
+          file.write(f + '\n')
+      print("prompt.txt for movies written...")
+    elif f_type == "log":
+      with open(f_type + '.log', 'a') as file:
+        file.write(output + '\n')
     else:
       with open(f_type + '.txt', 'w') as file:
         for f in output:
@@ -147,17 +152,20 @@ def write_to_file(output, f_type):
 
 
 def main():
+  given_path = args.d
+  content_type = args.m
+  print(args.anime)
   while True:
     print_menu()
     menu_choice = input("Please choose one option: ").strip()
 
     if menu_choice == "1":
       print("Generating prompt for LLM (see prompt.txt)...\nCopy the content of prompt.txt in ChatGPT.")
-      given_path = sys.argv[1]
-      content_type = sys.argv[2]
+
       collected_data = read_folder(given_path, content_type)
       if collected_data:
-        write_to_file(collected_data, 'prompt')
+        write_to_file(collected_data, 'prompt', args.anime)
+        open("output.txt", "w").close()
       else:
         print("No data found in directory.")
         break
@@ -173,13 +181,41 @@ def main():
         break
       else:
         clear()
-        print("Generating a dry-run output for your review (see dry-run.txt). If the dry-run output is correct, continue with step 3.")
+        print("Generating a dry-run output for your review (dry-run.txt). You can edit dry-run.txt if you are not satisfied with the LLM output (don't forget to save). If the dry-run output is correct and ready, continue with step 3.")
         dry_run = [f"{x} --> {y}" for x, y in zip(old_data, renamed_data)]
         write_to_file(dry_run, 'dry-run')
     elif menu_choice == "3":
       confirm = input("Are you sure? Did you check the dry-run file? Confirm y/n: ").strip().lower()
       if confirm =="y":
-        print("confirm")  
+        tmp = read_file("dry-run.txt", "no", "no")
+        tidy_data = [item.split(" --> ") for item in tmp]
+        if content_type == "folder":
+          for folder_name in tidy_data:
+            old_path = os.path.join(given_path, folder_name[0])
+            new_path = os.path.join(given_path, folder_name[1])
+
+            Path(old_path).rename(new_path)
+            write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + old_path + " renamed to " + new_path), "log")
+          print("Logfile written: log.log")
+          cleanup()
+          break
+        elif content_type == "files":
+          for file_names in tidy_data:
+            old_path = os.path.join(given_path, file_names[0])
+            new_name = os.path.join(given_path, file_names[1])
+            name_for_folder = os.path.splitext(file_names[1])
+            new_path = os.path.join(given_path, name_for_folder[0])
+            new_path = os.path.join(new_path, file_names[1])
+            new_folder_path = os.path.join(given_path, name_for_folder[0])
+
+            os.makedirs(new_folder_path, exist_ok=True)
+            write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + "Folder " + new_folder_path + " created."), "log")
+
+            shutil.move(old_path, new_path)
+            write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + old_path + " renamed and moved to " + new_path), "log")
+          print("Logfile written: log.log")
+          cleanup()
+          break
       else:
         break
     elif menu_choice == "4":
@@ -189,7 +225,28 @@ def main():
 
 
 if __name__ == "__main__":
-  if len(sys.argv) < 3:
-    print("Please provide a path and the content type.")
-  else:
-    main()
+  arg_parser = argparse.ArgumentParser(description = "This is a script for tidying up a movie/series library. Works best with jellyfin.")
+
+  arg_parser.add_argument(
+    "-d", "-directory",
+    required = True,
+    help = "Provide the directory which should be parsed."
+    )
+
+  arg_parser.add_argument(
+    "-m", "-mode",
+    choices = ["files", "folder"],
+    default = "",
+    required = True,
+    help = "Which should be processe? 'files' or 'folders'"
+    )
+
+  arg_parser.add_argument(
+    "--anime", "--a",
+    help = "Use this flag if you want to process Anime content. The output will be largely in romanji, which works better with Anime metadata search.",
+    action = "store_true",
+    default = False
+    )
+  args = arg_parser.parse_args()
+
+  main()

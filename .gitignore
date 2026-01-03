@@ -1,0 +1,5 @@
+testdata/
+log.log
+prompt.txt
+output.txt
+dry-run.txt
