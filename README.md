@@ -1,6 +1,6 @@
 # **jf_tidy_lib**
 
-This is a litte helper for tidying up a movie/series library.
+This is a litte helper for organizing a movie/series library.
 It can process files and folders, rename those and add the release year. In case of files, new directories will be created and the files moved there.
 
 ---
@@ -11,7 +11,7 @@ How to use:
 
 Provide a directory and the mode with the -d and -m (files or folder) argument respectively. Optional: Set the flag --anime if you want to process anime content. In this case the ChatGPT prompt will be altered for better results.
 
-## Example:
+#### Example:
 ```bash
 python jf_tidy_lib.py -d /some/directory -m folder --anime
 ```
