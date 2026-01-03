@@ -11,6 +11,11 @@ How to use:
 
 Provide a directory and the mode with the -d and -m (files or folder) argument respectively. Optional: Set the flag --anime if you want to process anime content. In this case the ChatGPT prompt will be altered for better results.
 
+## Example:
+```bash
+python jf_tidy_lib.py -d /some/directory -m folder --anime
+```
+
 ### Step 2:
 
 Let the script generate a LLM prompt (option 1 in menu). You will find a **'prompt.txt'** file in same directory as this script.
