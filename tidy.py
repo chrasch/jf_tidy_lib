@@ -31,11 +31,11 @@ prompt_header_anime = (
 
 
 def print_menu():
-  print("\n----- Tidy Script -----")
+  print("\n\n----- Tidy Script -----")
   print("1) Generate prompt for LLM.")
   print("2) Paste LLM output in output.txt. Read in the LLM output. Create a dry-run.txt for checking.")
   print("3) Rename and/or create the folders in the specified directory. Files will be moved to the new directories.")
-  print("4) Exit")
+  print("4) Exit\n\n")
 
 
 def clear():
@@ -90,21 +90,22 @@ def read_folder(path, content_type):
     print(f"Error: {e}")
 
 
-def read_file(path, ignore_header, sanitize):
+def read_file(path, ignore_header = False, sanitize = False):
   output = []
+
   try:
-    if ignore_header == "yes" and sanitize == "yes":  
+    if ignore_header and sanitize:
       with open(path, 'r') as file:
         next(file)
         for line in file:
           tmp = sanitize_names(line)
           output.append(tmp)
-    elif sanitize == "yes":
+    elif sanitize:
       with open(path, 'r') as file:
         for line in file:
           tmp = sanitize_names(line)
           output.append(tmp)
-    elif ignore_header == "yes":
+    elif ignore_header:
       with open(path, 'r') as file:
         next(file)
         for line in file:
@@ -135,7 +136,6 @@ def write_to_file(output, f_type, flag = False):
     elif f_type == "prompt":
       with open('prompt.txt', 'w') as file:
         file.write(prompt_header + '\n')
-        print(flag)
         for f in output:
           file.write(f + '\n')
       print("prompt.txt for movies written...")
@@ -151,17 +151,18 @@ def write_to_file(output, f_type, flag = False):
     print(f"Error while writing file: {e}")
 
 
-def main():
+def main(args):
   given_path = args.d
   content_type = args.m
-  print(args.anime)
+
+
   while True:
     print_menu()
     menu_choice = input("Please choose one option: ").strip()
 
     if menu_choice == "1":
+      clear()
       print("Generating prompt for LLM (see prompt.txt)...\nCopy the content of prompt.txt in ChatGPT.")
-
       collected_data = read_folder(given_path, content_type)
       if collected_data:
         write_to_file(collected_data, 'prompt', args.anime)
@@ -170,9 +171,10 @@ def main():
         print("No data found in directory.")
         break
     elif menu_choice =="2":
+      clear()
       print("Reading output of LLM...\n")
-      renamed_data = read_file("./output.txt", "no", "yes")
-      old_data = read_file("./prompt.txt", "yes", "no")
+      renamed_data = read_file("./output.txt", False, True)
+      old_data = read_file("./prompt.txt", True, False)
       if len(old_data) != len(renamed_data):
         clear()
         print("Lines old names: " + str(len(old_data)) + "\n")
@@ -187,13 +189,12 @@ def main():
     elif menu_choice == "3":
       confirm = input("Are you sure? Did you check the dry-run file? Confirm y/n: ").strip().lower()
       if confirm =="y":
-        tmp = read_file("dry-run.txt", "no", "no")
+        tmp = read_file("dry-run.txt", False, False)
         tidy_data = [item.split(" --> ") for item in tmp]
         if content_type == "folder":
           for folder_name in tidy_data:
             old_path = os.path.join(given_path, folder_name[0])
             new_path = os.path.join(given_path, folder_name[1])
-
             Path(old_path).rename(new_path)
             write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + old_path + " renamed to " + new_path), "log")
           print("Logfile written: log.log")
@@ -202,15 +203,12 @@ def main():
         elif content_type == "files":
           for file_names in tidy_data:
             old_path = os.path.join(given_path, file_names[0])
-            new_name = os.path.join(given_path, file_names[1])
             name_for_folder = os.path.splitext(file_names[1])
             new_path = os.path.join(given_path, name_for_folder[0])
             new_path = os.path.join(new_path, file_names[1])
             new_folder_path = os.path.join(given_path, name_for_folder[0])
-
             os.makedirs(new_folder_path, exist_ok=True)
             write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + "Folder " + new_folder_path + " created."), "log")
-
             shutil.move(old_path, new_path)
             write_to_file(str(datetime.now().strftime('%d-%m-%Y %H:%M:%S') + ": " + old_path + " renamed and moved to " + new_path), "log")
           print("Logfile written: log.log")
@@ -225,12 +223,22 @@ def main():
 
 
 if __name__ == "__main__":
-  arg_parser = argparse.ArgumentParser(description = "This is a script for tidying up a movie/series library. Works best with jellyfin.")
+  arg_parser = argparse.ArgumentParser(
+    description = """This is a litte helper for tidying up a movie/series library.
+It can process files and folders, rename those and add the release year. In case of files, new directories will be created and the files moved there.
+Usage:
+Step 1: Provide a directory and the mode with the -d and -m (files or folder) argument respectively. Optional: Set the flag --anime if you want to process anime content. In this case the ChatGPT prompt will be altered for better results.
+Step 2: Let the script generate a LLM prompt (option 1 in menu). You will find a 'prompt.txt' file in same directory as this script.
+Step 3: Copy the prompt into ChatGPT and let it generate the names and years. Sometimes it helps to prompt ChatGPT a few times until everything is correct.
+Step 4: Copy the output of ChatGPT into 'output.txt', save the file, and continue with option 2 in the menu. This will generate a 'dry-run.txt' file. Review this file and make changes if needed. Don't forget to save!
+Step 5: Continue with Step 3 in the menu. The script will use the data in 'dry-run.txt' and rename/move things accordingly. After finishing, a 'log.log' will be generated and the other files will be removed. """,
+    formatter_class = argparse.RawTextHelpFormatter
+    )
 
   arg_parser.add_argument(
     "-d", "-directory",
     required = True,
-    help = "Provide the directory which should be parsed."
+    help = "Provide the directory which should be processed."
     )
 
   arg_parser.add_argument(
@@ -238,15 +246,16 @@ if __name__ == "__main__":
     choices = ["files", "folder"],
     default = "",
     required = True,
-    help = "Which should be processe? 'files' or 'folders'"
+    help = "What should be processed? 'files' or 'folders'"
     )
 
   arg_parser.add_argument(
     "--anime", "--a",
-    help = "Use this flag if you want to process Anime content. The output will be largely in romanji, which works better with Anime metadata search.",
+    help = "Use this flag if you want to process Anime content. The output will be largely in romanized, which works better with Anime metadata search.",
     action = "store_true",
     default = False
     )
+
   args = arg_parser.parse_args()
 
-  main()
+  main(args)
