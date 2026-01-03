@@ -1,7 +1,9 @@
 # **jf_tidy_lib**
 
-This is a litte helper for organizing a movie/series library.
+This is a litte helper for organizing a movie/series library.\
 It can process files and folders, rename those and add the release year. In case of files, new directories will be created and the files moved there.
+
+It uses ChatGPT for tidying up the names and search of the release year. ChatGPT can halucinate, but for this purpose the output is usable and it is easier and faster than Regex + OMDB API.
 
 ---
 How to use:
