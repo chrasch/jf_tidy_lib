@@ -54,6 +54,11 @@ def cleanup():
 def sanitize_names(name):
   name = name.strip()
   name = name.replace(": ", " - ")
+  name = name.replace("*", " ")
+  name = name.replace(";", " ")
+  name = name.replace("!", "")
+  name = name.replace("?", "")
+  name = name.replace("'", "")
   name = name.replace("/", "-")
   out = re.sub(r"\s+", " ", name)
   return out
@@ -193,6 +198,7 @@ def main(args):
         tidy_data = [item.split(" --> ") for item in tmp]
         if content_type == "folder":
           for folder_name in tidy_data:
+            folder_name[1] = sanitize_names(folder_name[1])
             old_path = os.path.join(given_path, folder_name[0])
             new_path = os.path.join(given_path, folder_name[1])
             Path(old_path).rename(new_path)
@@ -202,6 +208,7 @@ def main(args):
           break
         elif content_type == "files":
           for file_names in tidy_data:
+            file_names[1] = sanitize_names(file_names[1])
             old_path = os.path.join(given_path, file_names[0])
             name_for_folder = os.path.splitext(file_names[1])
             new_path = os.path.join(given_path, name_for_folder[0])
